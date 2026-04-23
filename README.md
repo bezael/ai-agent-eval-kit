@@ -113,7 +113,7 @@ jobs:
 
 The PDF with a detailed breakdown of each eval, pass criteria, and a results log template is exclusive to subscribers of the **Build con IA** newsletter.
 
-→ [Subscribe for free and download the PDF](https://dominicode.com/newsletter?source=repo_ai-agent-eval-kit&topic=ai-agent)
+→ [Subscribe for free and download the PDF](https://dominicode.com/newsletter?utm_source=repo_ai-agent-eval-kit&utm_topic=ai_agent_kit)
 
 ---
 
