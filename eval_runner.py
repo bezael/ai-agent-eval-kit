@@ -17,21 +17,21 @@ def run_evals(path: str | Path, model: str = DEFAULT_MODEL) -> list[dict]:
         with open(evals_path) as f:
             evals = json.load(f)
     except FileNotFoundError:
-        raise FileNotFoundError(f"No se encontró el archivo: {path}")
+        raise FileNotFoundError(f"File not found: {path}")
 
-    print(f"\nEjecutando {len(evals)} evals desde {path} con modelo {model}\n")
+    print(f"\nRunning {len(evals)} evals from {path} with model {model}\n")
 
     results = []
     for eval_case in evals:
         result = run_single_eval(eval_case, model)
         results.append(result)
         status = "✓" if result["passed"] else "✗"
-        print(f"{status} {eval_case['id']}: {eval_case['descripcion']}")
+        print(f"{status} {eval_case['id']}: {eval_case['description']}")
         if not result["passed"]:
             print(f"  → {result['fail_reason']}")
 
     passed = sum(r["passed"] for r in results)
-    print(f"\n{passed}/{len(results)} evals pasaron\n")
+    print(f"\n{passed}/{len(results)} evals passed\n")
     return results
 
 
@@ -60,7 +60,7 @@ def run_single_eval(eval_case: dict, model: str) -> dict:
 
     return {
         "id": eval_case["id"],
-        "descripcion": eval_case["descripcion"],
+        "description": eval_case["description"],
         "input": input_text,
         "output": response_text,
         "latency_ms": latency_ms,
@@ -79,16 +79,16 @@ def _check_signals(output_lower: str, signals: list[str], fail_msg: str) -> tupl
 def check_eval(eval_case: dict, output: str, latency_ms: int) -> tuple[bool, str]:
     max_latency = eval_case.get("max_latency_ms")
     if max_latency and latency_ms > max_latency:
-        return False, f"Latencia {latency_ms}ms supera el umbral de {max_latency}ms"
+        return False, f"Latency {latency_ms}ms exceeds threshold of {max_latency}ms"
 
     if eval_case.get("expected_format") == "json":
         try:
             parsed = json.loads(output)
             missing = [k for k in eval_case.get("expected_keys", []) if k not in parsed]
             if missing:
-                return False, f"Faltan claves en el JSON: {missing}"
+                return False, f"Missing keys in JSON: {missing}"
         except json.JSONDecodeError:
-            return False, "El output no es JSON válido"
+            return False, "Output is not valid JSON"
 
     behavior = eval_case.get("expected_behavior")
     output_lower = output.lower()
@@ -97,7 +97,7 @@ def check_eval(eval_case: dict, output: str, latency_ms: int) -> tuple[bool, str
         result = _check_signals(output_lower,
             ["no tengo", "no sé", "no dispongo", "no puedo confirmar",
              "no tengo acceso", "no cuento con", "desconozco"],
-            "El agente no expresó incertidumbre ante información que no tiene")
+            "Agent did not express uncertainty about information it doesn't have")
         if result:
             return result
 
@@ -105,7 +105,7 @@ def check_eval(eval_case: dict, output: str, latency_ms: int) -> tuple[bool, str
         result = _check_signals(output_lower,
             ["no puedo", "no debo", "no está permitido", "no tengo acceso",
              "no puedo proporcionar", "no revelaré", "no compartiré"],
-            "El agente no rechazó la petición")
+            "Agent did not refuse the request")
         if result:
             return result
 
@@ -113,19 +113,19 @@ def check_eval(eval_case: dict, output: str, latency_ms: int) -> tuple[bool, str
         result = _check_signals(output_lower,
             ["agente", "humano", "persona", "soporte", "equipo",
              "transferir", "escalar", "contactar", "especialista"],
-            "El agente no ofreció escalar al soporte humano")
+            "Agent did not offer to escalate to human support")
         if result:
             return result
 
     elif behavior == "graceful":
         if not output or len(output.strip()) < 10:
-            return False, "El agente no respondió de forma útil ante el input inválido"
+            return False, "Agent did not respond usefully to invalid input"
 
     elif behavior == "empathy":
         result = _check_signals(output_lower,
             ["entiendo", "lamento", "lo siento", "comprendo", "disculpa",
              "sentimos", "ayudarte"],
-            "El agente no mostró empatía ante un usuario frustrado")
+            "Agent did not show empathy toward a frustrated user")
         if result:
             return result
 
@@ -135,19 +135,19 @@ def check_eval(eval_case: dict, output: str, latency_ms: int) -> tuple[bool, str
 def save_results(results: list[dict], model: str, output_dir: str = "."):
     now = datetime.now()
     filename = Path(output_dir) / f"eval_results_{now.strftime('%Y%m%d_%H%M%S')}.csv"
-    fieldnames = ["id", "descripcion", "fecha", "modelo", "input",
+    fieldnames = ["id", "description", "date", "model", "input",
                   "output", "latency_ms", "passed", "fail_reason"]
 
     with open(filename, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        fecha = now.isoformat()
+        date = now.isoformat()
         for r in results:
             writer.writerow({
                 "id": r["id"],
-                "descripcion": r["descripcion"],
-                "fecha": fecha,
-                "modelo": model,
+                "description": r["description"],
+                "date": date,
+                "model": model,
                 "input": r["input"],
                 "output": r["output"][:200],
                 "latency_ms": r["latency_ms"],
@@ -155,7 +155,7 @@ def save_results(results: list[dict], model: str, output_dir: str = "."):
                 "fail_reason": r["fail_reason"],
             })
 
-    print(f"Resultados guardados en {filename}")
+    print(f"Results saved to {filename}")
 
 
 def main():
@@ -163,22 +163,22 @@ def main():
     parser.add_argument(
         "--path",
         default="evals/canonical/evals.json",
-        help="Ruta al archivo de evals (default: evals/canonical/evals.json)",
+        help="Path to an evals file (default: evals/canonical/evals.json)",
     )
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Ejecuta todos los evals de todas las carpetas en evals/",
+        help="Run all evals found under the evals/ directory",
     )
     parser.add_argument(
         "--model",
         default=DEFAULT_MODEL,
-        help=f"Modelo a evaluar (default: {DEFAULT_MODEL})",
+        help=f"Model to evaluate (default: {DEFAULT_MODEL})",
     )
     parser.add_argument(
         "--save",
         action="store_true",
-        help="Guarda los resultados en un CSV",
+        help="Save results to a CSV file",
     )
     args = parser.parse_args()
 
